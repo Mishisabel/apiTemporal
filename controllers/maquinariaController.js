@@ -41,11 +41,12 @@ exports.getMaquinariaById = async (req, res) => {
 // Crear una nueva maquinaria
 exports.createMaquinaria = async (req, res) => {
   const { codigo, estado_actual, fabricante, fecha_Adquisicion, frente, horometro_Actual, modelo, nombre } = req.body;
-  const proximoMantenimiento= 0;
+  const proximoMantenimiento= 22; // Valor por defecto
+  const ultimoMantenimiento= 0; // Valor por defecto
   try {
     const { rows } = await db.query(
-      'INSERT INTO maquinaria (frente_id, codigo_activo, nombre_equipo, modelo, fabricante, fecha_adquisicion, estado_actual, horometro_actual, horometro_prox_mtto) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-      [frente, codigo, nombre, modelo, fabricante, fecha_Adquisicion, estado_actual, horometro_Actual, proximoMantenimiento]
+      'INSERT INTO maquinaria (frente_id, codigo_activo, nombre_equipo, modelo, fabricante, fecha_adquisicion, estado_actual, horometro_actual, horometro_prox_mtto, horometro_ultimo_mtto) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+      [frente, codigo, nombre, modelo, fabricante, fecha_Adquisicion, estado_actual, horometro_Actual, proximoMantenimiento, ultimoMantenimiento]
     );
     res.status(201).json(rows[0]);
   } catch (error) {
