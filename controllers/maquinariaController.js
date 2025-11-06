@@ -3,15 +3,53 @@ const db = require('../db/index');
 
 // Obtener toda la maquinaria
 exports.getAllMaquinaria = async (req, res) => {
+  // 1. Obtenemos el rol y el ID del usuario (gracias al authMiddleware)
+  const { rol, userId } = req.user;
+
   try {
-    const { rows } = await 
-    db.query('SELECT maquinaria_id, frentes.nombre_frente, frentes.analista_id, codigo_activo, nombre_equipo, modelo, '
-+'fabricante, fecha_adquisicion, estado.estado as estado_actual, horometro_actual as horometro_Actual, horometro_prox_mtto as proximoMantenimiento, horometro_ultimo_mtto  FROM maquinaria'
-+' INNER JOIN frentes ON maquinaria.frente_id = frentes.frente_id'
-+' INNER JOIN estado ON maquinaria.estado_actual = estado.id_estado');
+    // 2. Definimos la base de la consulta
+    const baseQuery = `
+      SELECT 
+        maq.maquinaria_id, 
+        f.nombre_frente, 
+        f.analista_id, 
+        maq.codigo_activo, 
+        maq.nombre_equipo, 
+        maq.modelo, 
+        maq.fabricante, 
+        maq.fecha_adquisicion, 
+        est.estado AS estado_actual, 
+        maq.horometro_actual AS "horometro_actual", 
+        maq.horometro_prox_mtto AS proximoMantenimiento, 
+        maq.horometro_ultimo_mtto
+      FROM 
+        maquinaria maq
+      INNER JOIN 
+        frentes f ON maq.frente_id = f.frente_id
+      INNER JOIN 
+        estado est ON maq.estado_actual = est.id_estado
+    `;
+
+    let finalQuery = baseQuery;
+    let queryParams = [];
+
+    // 3. Si es Analista, filtramos por su ID
+    // (Tu script SQL indica que 'frentes' tiene 'analista_id')
+    if (rol === 'Analista') {
+      finalQuery += ' WHERE f.analista_id = $1';
+      queryParams.push(userId);
+    }
+    // 4. Si es Coordinador o Gerencia, no añadimos 'WHERE',
+    //    por lo que traerá todo (el comportamiento que quieres)
+    
+    finalQuery += ' ORDER BY maq.maquinaria_id;';
+
+    const { rows } = await db.query(finalQuery, queryParams);
     res.json(rows);
+
   } catch (error) {
-    res.status(500).json({ message: 'Error al obtener la maquinaria', error });
+    console.error("Error al obtener maquinaria por rol:", error);
+    res.status(500).json({ message: 'Error al obtener la maquinaria', error: error.message });
   }
 };
 
