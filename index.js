@@ -22,6 +22,7 @@ const maquinariaRoutes = require('./routes/maquinaria');
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/maquinaria', maquinariaRoutes);
 
+let horometerNotifications = [];
 
 cron.schedule('* * * * *', async () => {
   console.log('Ejecutando tarea programada: Actualizando horómetros...');
@@ -44,9 +45,61 @@ cron.schedule('* * * * *', async () => {
       console.log(`Horómetros de ${result.rowCount} máquinas activas actualizados.`);
     }
 
+    const { rows } = await db.query(
+      `SELECT maquinaria_id, nombre_equipo, horometro_actual, 
+              horometro_ultimo_mtto, horometro_prox_mtto 
+       FROM maquinaria 
+       WHERE estado_actual = $1`, // Solo de máquinas activas
+      [idEstadoActivo]
+    );
+
+    const newNotifications = [];
+
+    for (const maq of rows) {
+      const horasDesdeMtto = maq.horometro_actual - maq.horometro_ultimo_mtto;
+      const estado = maq.horometro_prox_mtto - horasDesdeMtto;
+
+      let notificacion = null;
+
+      if (estado <= 4) {
+        // Lógica de "Por favor realizar mantenimiento"
+        notificacion = {
+          id: `not-maq-${maq.maquinaria_id}`,
+          tipo: 'alerta',
+          titulo: 'Mantenimiento Urgente',
+          mensaje: `¡Mantenimiento requerido YA! para ${maq.nombre_equipo}. Horas restantes: ${estado.toFixed(2)}`,
+          fecha: new Date().toISOString(),
+          leida: false,
+          enlace: '/machinery', // O podrías poner un enlace a la máquina específica
+        };
+      } else if (estado >= 5 && estado <= 8) {
+        // Lógica de "Proximo mantenimiento"
+        notificacion = {
+          id: `not-maq-${maq.maquinaria_id}`,
+          tipo: 'warning',
+          titulo: 'Mantenimiento Próximo',
+          mensaje: `${maq.nombre_equipo} requiere mantenimiento pronto. Horas restantes: ${estado.toFixed(2)}`,
+          fecha: new Date().toISOString(),
+          leida: false,
+          enlace: '/machinery',
+        };
+      }
+      
+      if (notificacion) {
+        newNotifications.push(notificacion);
+      }
+    }
+    
+    // Actualizamos la lista global
+    horometerNotifications = newNotifications;
+
   } catch (error) {
     console.error('Error actualizando horómetros:', error);
   }
+});
+
+app.get('/api/notificaciones/horometro', (req, res) => {
+  res.json(horometerNotifications);
 });
 
 
