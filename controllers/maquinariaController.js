@@ -6,7 +6,7 @@ exports.getAllMaquinaria = async (req, res) => {
   try {
     const { rows } = await 
     db.query('SELECT maquinaria_id, frentes.nombre_frente, frentes.analista_id, codigo_activo, nombre_equipo, modelo, '
-+'fabricante, fecha_adquisicion, estado.estado as estado_actual, horometro_actual as horometro_Actual, horometro_prox_mtto as proximoMantenimiento FROM maquinaria'
++'fabricante, fecha_adquisicion, estado.estado as estado_actual, horometro_actual as horometro_Actual, horometro_prox_mtto as proximoMantenimiento, horometro_ultimo_mtto  FROM maquinaria'
 +' INNER JOIN frentes ON maquinaria.frente_id = frentes.frente_id'
 +' INNER JOIN estado ON maquinaria.estado_actual = estado.id_estado');
     res.json(rows);
