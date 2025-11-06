@@ -7,7 +7,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 // POST /api/ordenes/inicio-mtto
 // Esta ruta estará protegida y usará el middleware
 router.post(
-  '/inicio-mtto',
+  '/inicio-mtto',authMiddleware,
   ordenesController.createOrdenInicioMtto
 );
 

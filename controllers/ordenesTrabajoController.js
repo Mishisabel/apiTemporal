@@ -8,19 +8,20 @@ const TIPO_MANTENIMIENTO_PREVENTIVO_ID = 1;
 
 exports.createOrdenInicioMtto = async (req, res) => {
   // Obtenemos el ID del analista desde el middleware
+  // Esto fallaba porque req.user era undefined
   const solicitanteId = req.user.userId;
   
-  // Obtenemos los datos del frontend
   const { maquinariaId, descripcionFalla, fechaInicio } = req.body;
 
   if (!maquinariaId || !solicitanteId || !fechaInicio) {
     return res.status(400).json({ message: 'Faltan datos requeridos (maquinariaId, solicitanteId, fechaInicio).' });
   }
   
-  const client = await db.pool.connect(); // Usamos 'pool' si está exportado, o db directamente
+  // --- CORRECCIÓN AQUÍ ---
+  // Usamos db.pool.connect() que SÍ existe ahora
+  const client = await db.pool.connect(); 
 
   try {
-    // Iniciamos una transacción
     await client.query('BEGIN');
 
     // 1. Insertar la nueva Orden de Trabajo
@@ -49,18 +50,15 @@ exports.createOrdenInicioMtto = async (req, res) => {
     `;
     await client.query(maquinaQuery, [ESTADO_EN_MANTENIMIENTO_ID, maquinariaId]);
 
-    // Si todo fue bien, confirmamos la transacción
     await client.query('COMMIT');
     
     res.status(201).json(newOT.rows[0]);
 
   } catch (error) {
-    // Si algo falla, revertimos todo
     await client.query('ROLLBACK');
     console.error('Error en la transacción de inicio de Mtto:', error);
     res.status(500).json({ message: 'Error interno del servidor al crear la OT', error: error.message });
   } finally {
-    // Liberamos el cliente de la pool
     client.release();
   }
 };
