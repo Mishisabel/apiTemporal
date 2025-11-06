@@ -21,6 +21,7 @@ const maquinariaRoutes = require('./routes/maquinaria');
 // Prefijo para todas las rutas de la API
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/maquinaria', maquinariaRoutes);
+app.use('/api/ordenes', ordenesTrabajoRoutes);
 
 let horometerNotifications = [];
 

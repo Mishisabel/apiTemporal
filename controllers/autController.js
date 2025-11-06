@@ -68,4 +68,27 @@ exports.login = async (req, res) => {
     console.error(error);
     res.status(500).json({ message: 'Error interno del servidor.' });
   }
+
+  module.exports = function(req, res, next) {
+  // Obtener token del header
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Acceso denegado. No se proporcionó token.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    // Verificar el token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Agregar el usuario (con 'userId' y 'rol') a la solicitud
+    req.user = decoded; 
+    
+    next(); // Continuar a la siguiente ruta
+  } catch (ex) {
+    res.status(400).json({ message: 'Token inválido.' });
+  }
+};
 };
