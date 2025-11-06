@@ -4,6 +4,9 @@ const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron'); 
 const db = require('./db/index');
+const http = require('http'); // Módulo nativo de Node
+const { Server } = require("socket.io"); // Librería de Socket.IO
+const { guardarMensaje } = require('./controllers/mensajesController');
 
 const app = express();
 
@@ -18,11 +21,18 @@ app.use(express.json());
 const usuariosRoutes = require('./routes/usuarios');
 const maquinariaRoutes = require('./routes/maquinaria');
 const ordenesTrabajoRoutes = require('./routes/ordenesTrabajo');
+const mensajesRoutes = require('./routes/mensajes');
+
 
 // Prefijo para todas las rutas de la API
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/maquinaria', maquinariaRoutes);
 app.use('/api/ordenes', ordenesTrabajoRoutes);
+app.use('/api/mensajes', mensajesRoutes);
+app.get('/api/notificaciones/horometro', (req, res) => {
+  res.json(horometerNotifications);
+});
+
 
 let horometerNotifications = [];
 
@@ -100,12 +110,74 @@ cron.schedule('* * * * *', async () => {
   }
 });
 
-app.get('/api/notificaciones/horometro', (req, res) => {
-  res.json(horometerNotifications);
+
+
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*", 
+    methods: ["GET", "POST"]
+  }
 });
 
 
+const userSocketMap = new Map();
+
+io.on('connection', (socket) => {
+  console.log(`Un usuario se conectó: ${socket.id}`);
+  socket.on('join', (userId) => {
+    // --- CORRECCIÓN AQUÍ ---
+    const userIdString = String(userId);
+    console.log(`Usuario ${userIdString} se unió con el socket ${socket.id}`);
+    userSocketMap.set(userIdString, socket.id);
+  });
+
+  // Evento: Un usuario envía un mensaje
+  // Evento: Un usuario envía un mensaje
+  socket.on('sendMessage', async (data) => {
+    console.log('Mensaje recibido:', data);
+
+    // 1. (CORREGIDO) Aseguramos que los IDs sean strings
+    const dataParaGuardar = {
+      ...data,
+      remitente_id: String(data.remitente_id),
+      destinatario_id: String(data.destinatario_id)
+    };
+
+    try {
+      // 2. (CORREGIDO) Guardamos los datos correctos (con strings)
+      const mensajeGuardado = await guardarMensaje(dataParaGuardar);
+
+      // 3. Buscamos al destinatario usando el ID de string
+      const destinatarioSocketId = userSocketMap.get(dataParaGuardar.destinatario_id);
+    
+      if (destinatarioSocketId) {
+        // 4. Emitimos el mensaje guardado (que tiene los strings)
+        io.to(destinatarioSocketId).emit('receiveMessage', mensajeGuardado);
+      }
+    } catch (error) {
+      console.error("Error al guardar o emitir el mensaje:", error);
+    }
+  });
+    
+  
+
+  // Evento: El usuario se desconecta
+  socket.on('disconnect', () => {
+    console.log(`Usuario desconectado: ${socket.id}`);
+    for (let [userIdString, socketId] of userSocketMap.entries()) {
+      if (socketId === socket.id) {
+       userSocketMap.delete(userIdString);
+        break;
+      }
+    }
+  });
+});
+
+
+
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Servidor API y Chat corriendo en http://localhost:${PORT}`);
 });

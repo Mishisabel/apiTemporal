@@ -34,8 +34,9 @@ exports.login = async (req, res) => {
   const { correo, contrasena } = req.body;
   try {
 
-    const userResult = await db.query('SELECT usuarios.usuario_id as id_usuario, usuarios.nombre_completo as nombre, usuarios.password_hash, usuarios.email as correo,  roles.nombre_rol as rol FROM usuarios INNER JOIN roles ON roles.rol_id = usuarios.rol_id WHERE email = $1', [correo]);
-    //SELECT * FROM usuario WHERE correo = 'bella@gmail.com'
+    // (HE CORREGIDO 'id_usuario' POR 'id' PARA QUE COINCIDA CON TU FRONTEND)
+    const userResult = await db.query('SELECT usuarios.usuario_id as id, usuarios.nombre_completo as nombre, usuarios.password_hash, usuarios.email as correo,  roles.nombre_rol as rol FROM usuarios INNER JOIN roles ON roles.rol_id = usuarios.rol_id WHERE email = $1', [correo]);
+    
     if (userResult.rows.length === 0) {
       return res.status(401).json({ message: 'Credenciales inválidas.' });
     }
@@ -49,7 +50,7 @@ exports.login = async (req, res) => {
 
     // 3. Crear y firmar el token JWT
     const token = jwt.sign(
-      { userId: user.id_usuario, rol: user.rol },
+      { userId: user.id, rol: user.rol }, // Usamos user.id
       process.env.JWT_SECRET,
       { expiresIn: '8h' } // El token expira en 8 horas
     );
@@ -57,7 +58,7 @@ exports.login = async (req, res) => {
     res.json({
       token,
       user: {
-        id: user.id_usuario,
+        id: user.id, // Usamos user.id
         nombre: user.nombre,
         correo: user.correo,
         rol: user.rol,
@@ -68,27 +69,5 @@ exports.login = async (req, res) => {
     console.error(error);
     res.status(500).json({ message: 'Error interno del servidor.' });
   }
-
-  module.exports = function(req, res, next) {
-  // Obtener token del header
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Acceso denegado. No se proporcionó token.' });
-  }
-
-  const token = authHeader.split(' ')[1];
-
-  try {
-    // Verificar el token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Agregar el usuario (con 'userId' y 'rol') a la solicitud
-    req.user = decoded; 
-    
-    next(); // Continuar a la siguiente ruta
-  } catch (ex) {
-    res.status(400).json({ message: 'Token inválido.' });
-  }
 };
-};
+// --- EL CÓDIGO EXTRA QUE TENÍAS PEGADO AQUÍ FUE ELIMINADO ---
