@@ -17,6 +17,7 @@ app.use(express.json());
 
 const usuariosRoutes = require('./routes/usuarios');
 const maquinariaRoutes = require('./routes/maquinaria');
+const ordenesTrabajoRoutes = require('./routes/ordenesTrabajo');
 
 // Prefijo para todas las rutas de la API
 app.use('/api/usuarios', usuariosRoutes);
