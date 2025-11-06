@@ -11,4 +11,10 @@ router.post(
   ordenesController.createOrdenInicioMtto
 );
 
+router.get(
+  '/todas',
+  authMiddleware,
+  ordenesController.getAllOrdenesTrabajo
+);
+
 module.exports = router;

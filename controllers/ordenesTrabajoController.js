@@ -1,35 +1,35 @@
 // controllers/ordenesTrabajoController.js
 const db = require('../db/index');
 
-// ID 3 = 'En proceso' (según tu script.sql)
+// --- Definimos los IDs basados en tu INSERT ---
+// ID 3 = 'En proceso' (de la tabla 'estado')
 const ESTADO_EN_MANTENIMIENTO_ID = 3; 
-// ID 1 = 'Preventivo' (Asumiremos que este es el tipo por defecto al iniciar)
+// ID 1 = 'Preventivo' (de la tabla 'TiposMantenimiento')
 const TIPO_MANTENIMIENTO_PREVENTIVO_ID = 1; 
+// ID 3 = 'Media' (de tu nueva tabla 'prioridad')
+const PRIORIDAD_MEDIA_ID = 3;
 
+
+// Función para CREAR la OT (Modificada)
 exports.createOrdenInicioMtto = async (req, res) => {
-  // Obtenemos el ID del analista desde el middleware
-  // Esto fallaba porque req.user era undefined
   const solicitanteId = req.user.userId;
-  
   const { maquinariaId, descripcionFalla, fechaInicio } = req.body;
 
   if (!maquinariaId || !solicitanteId || !fechaInicio) {
-    return res.status(400).json({ message: 'Faltan datos requeridos (maquinariaId, solicitanteId, fechaInicio).' });
+    return res.status(400).json({ message: 'Faltan datos requeridos.' });
   }
   
-  // --- CORRECCIÓN AQUÍ ---
-  // Usamos db.pool.connect() que SÍ existe ahora
   const client = await db.pool.connect(); 
 
   try {
     await client.query('BEGIN');
 
-    // 1. Insertar la nueva Orden de Trabajo
+    // 1. Insertar la nueva Orden de Trabajo (con prioridad)
     const otQuery = `
       INSERT INTO OrdenesTrabajo 
-        (maquinaria_id, tipo_mtto_id, solicitante_id, fecha_creacion, descripcion_falla, estado_ot)
+        (maquinaria_id, tipo_mtto_id, solicitante_id, fecha_creacion, descripcion_falla, estado_ot, prioridad_ot)
       VALUES 
-        ($1, $2, $3, $4, $5, $6)
+        ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
     const otValues = [
@@ -38,11 +38,12 @@ exports.createOrdenInicioMtto = async (req, res) => {
       solicitanteId,
       fechaInicio,
       descripcionFalla,
-      ESTADO_EN_MANTENIMIENTO_ID
+      ESTADO_EN_MANTENIMIENTO_ID,
+      PRIORIDAD_MEDIA_ID // <-- ¡Aquí usamos la nueva prioridad!
     ];
     const newOT = await client.query(otQuery, otValues);
 
-    // 2. Actualizar el estado de la Maquinaria a "En Mantenimiento"
+    // 2. Actualizar el estado de la Maquinaria
     const maquinaQuery = `
       UPDATE Maquinaria
       SET estado_actual = $1
@@ -60,5 +61,47 @@ exports.createOrdenInicioMtto = async (req, res) => {
     res.status(500).json({ message: 'Error interno del servidor al crear la OT', error: error.message });
   } finally {
     client.release();
+  }
+};
+
+
+// Función para OBTENER TODAS las OT (Modificada)
+exports.getAllOrdenesTrabajo = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        ot.ot_id AS id,
+        maq.nombre_equipo AS "maquinariaNombre",
+        tm.nombre AS tipo,
+        ot.descripcion_falla AS "descripcionProblema",
+        est.estado AS estado,
+        
+        -- ¡Aquí leemos la prioridad real de la BD!
+        COALESCE(p.nivel_prioridad, 'Sin prioridad') AS prioridad, 
+        
+        ot.fecha_creacion AS "fechaCreacion"
+      FROM 
+        OrdenesTrabajo ot
+      JOIN 
+        Maquinaria maq ON ot.maquinaria_id = maq.maquinaria_id
+      JOIN 
+        estado est ON ot.estado_ot = est.id_estado
+      JOIN
+        TiposMantenimiento tm ON ot.tipo_mtto_id = tm.tipo_mtto_id
+      
+      -- Hacemos LEFT JOIN por si alguna OT no tuviera prioridad asignada
+      LEFT JOIN
+        prioridad p ON ot.prioridad_ot = p.id_prioridad
+        
+      ORDER BY
+        ot.fecha_creacion DESC;
+    `;
+    
+    const { rows } = await db.query(query);
+    res.json(rows);
+
+  } catch (error) {
+    console.error('Error al obtener órdenes de trabajo:', error);
+    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
   }
 };
