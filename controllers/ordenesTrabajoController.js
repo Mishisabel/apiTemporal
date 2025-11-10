@@ -1,30 +1,21 @@
-// controllers/ordenesTrabajoController.js
-const db = require('../db/index');
-
-// --- Definimos los IDs basados en tu INSERT ---
-// ID 3 = 'En proceso' (de la tabla 'estado')
-const ESTADO_EN_MANTENIMIENTO_ID = 3; 
-// ID 1 = 'Preventivo' (de la tabla 'TiposMantenimiento')
-const TIPO_MANTENIMIENTO_PREVENTIVO_ID = 1; 
-// ID 3 = 'Media' (de tu nueva tabla 'prioridad')
+const db = require("../db/index");
+const ESTADO_EN_MANTENIMIENTO_ID = 3;
+const TIPO_MANTENIMIENTO_PREVENTIVO_ID = 1;
 const PRIORIDAD_MEDIA_ID = 3;
 
-
-// Función para CREAR la OT (Modificada)
 exports.createOrdenInicioMtto = async (req, res) => {
   const solicitanteId = req.user.userId;
   const { maquinariaId, descripcionFalla, fechaInicio } = req.body;
 
   if (!maquinariaId || !solicitanteId || !fechaInicio) {
-    return res.status(400).json({ message: 'Faltan datos requeridos.' });
+    return res.status(400).json({ message: "Faltan datos requeridos." });
   }
-  
-  const client = await db.pool.connect(); 
+
+  const client = await db.pool.connect();
 
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
-    // 1. Insertar la nueva Orden de Trabajo (con prioridad)
     const otQuery = `
       INSERT INTO OrdenesTrabajo 
         (maquinaria_id, tipo_mtto_id, solicitante_id, fecha_creacion, descripcion_falla, estado_ot, prioridad_ot)
@@ -39,33 +30,34 @@ exports.createOrdenInicioMtto = async (req, res) => {
       fechaInicio,
       descripcionFalla,
       ESTADO_EN_MANTENIMIENTO_ID,
-      PRIORIDAD_MEDIA_ID // <-- ¡Aquí usamos la nueva prioridad!
+      PRIORIDAD_MEDIA_ID,
     ];
     const newOT = await client.query(otQuery, otValues);
-
-    // 2. Actualizar el estado de la Maquinaria
     const maquinaQuery = `
       UPDATE Maquinaria
       SET estado_actual = $1
       WHERE maquinaria_id = $2
     `;
-    await client.query(maquinaQuery, [ESTADO_EN_MANTENIMIENTO_ID, maquinariaId]);
+    await client.query(maquinaQuery, [
+      ESTADO_EN_MANTENIMIENTO_ID,
+      maquinariaId,
+    ]);
 
-    await client.query('COMMIT');
-    
+    await client.query("COMMIT");
+
     res.status(201).json(newOT.rows[0]);
-
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error en la transacción de inicio de Mtto:', error);
-    res.status(500).json({ message: 'Error interno del servidor al crear la OT', error: error.message });
+    await client.query("ROLLBACK");
+    console.error("Error en la transacción de inicio de Mtto:", error);
+    res.status(500).json({
+      message: "Error interno del servidor al crear la OT",
+      error: error.message,
+    });
   } finally {
     client.release();
   }
 };
 
-
-// Función para OBTENER TODAS las OT (Modificada)
 exports.getAllOrdenesTrabajo = async (req, res) => {
   try {
     const query = `
@@ -96,12 +88,13 @@ exports.getAllOrdenesTrabajo = async (req, res) => {
       ORDER BY
         ot.fecha_creacion DESC;
     `;
-    
+
     const { rows } = await db.query(query);
     res.json(rows);
-
   } catch (error) {
-    console.error('Error al obtener órdenes de trabajo:', error);
-    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+    console.error("Error al obtener órdenes de trabajo:", error);
+    res
+      .status(500)
+      .json({ message: "Error interno del servidor", error: error.message });
   }
 };

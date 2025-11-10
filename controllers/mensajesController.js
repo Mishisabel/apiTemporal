@@ -1,7 +1,5 @@
-// controllers/mensajesController.js
 const db = require('../db/index');
 
-// Función para guardar un nuevo mensaje
 exports.guardarMensaje = async (datos) => {
   const { remitente_id, destinatario_id, cuerpo } = datos;
   try {
@@ -17,10 +15,9 @@ exports.guardarMensaje = async (datos) => {
   }
 };
 
-// Función para obtener el historial entre dos usuarios
 exports.getHistorialChat = async (req, res) => {
-  const miId = req.user.userId; // Viene del authMiddleware
-  const otroUsuarioId = req.params.id; // Viene de la URL
+  const miId = req.user.userId;
+  const otroUsuarioId = req.params.id;
 
   try {
     const query = `
