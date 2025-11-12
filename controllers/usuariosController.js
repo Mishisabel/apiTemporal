@@ -1,11 +1,9 @@
-// controllers/usuariosController.js
 const db = require('../db/index');
 
 exports.getAllUsuarios = async (req, res) => {
-  const miId = req.user.userId; // Obtenemos el ID del usuario que hace la petición
+  const miId = req.user.userId;
 
   try {
-    // Traemos a todos los usuarios EXCEPTO a nosotros mismos
     const query = `
       SELECT 
         usuario_id AS id, 

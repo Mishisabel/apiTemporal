@@ -1,13 +1,9 @@
-// controllers/maquinariaController.js
 const db = require('../db/index');
 
-// Obtener toda la maquinaria
 exports.getAllMaquinaria = async (req, res) => {
-  // 1. Obtenemos el rol y el ID del usuario (gracias al authMiddleware)
   const { rol, userId } = req.user;
 
   try {
-    // 2. Definimos la base de la consulta
     const baseQuery = `
       SELECT 
         maq.maquinaria_id, 
@@ -32,16 +28,11 @@ exports.getAllMaquinaria = async (req, res) => {
 
     let finalQuery = baseQuery;
     let queryParams = [];
-
-    // 3. Si es Analista, filtramos por su ID
-    // (Tu script SQL indica que 'frentes' tiene 'analista_id')
     if (rol === 'Analista') {
       finalQuery += ' WHERE f.analista_id = $1';
       queryParams.push(userId);
     }
-    // 4. Si es Coordinador o Gerencia, no añadimos 'WHERE',
-    //    por lo que traerá todo (el comportamiento que quieres)
-    
+
     finalQuery += ' ORDER BY maq.maquinaria_id;';
 
     const { rows } = await db.query(finalQuery, queryParams);
@@ -62,7 +53,6 @@ exports.getFrentesMaquinaria = async (req, res) => {
   }
 };
 
-// Obtener una maquinaria por ID
 exports.getMaquinariaById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -76,11 +66,10 @@ exports.getMaquinariaById = async (req, res) => {
   }
 };
 
-// Crear una nueva maquinaria
 exports.createMaquinaria = async (req, res) => {
   const { codigo, estado_actual, fabricante, fecha_Adquisicion, frente, horometro_Actual, modelo, nombre } = req.body;
-  const proximoMantenimiento= 22; // Valor por defecto
-  const ultimoMantenimiento= 0; // Valor por defecto
+  const proximoMantenimiento= 22; 
+  const ultimoMantenimiento= 0; 
   try {
     const { rows } = await db.query(
       'INSERT INTO maquinaria (frente_id, codigo_activo, nombre_equipo, modelo, fabricante, fecha_adquisicion, estado_actual, horometro_actual, horometro_prox_mtto, horometro_ultimo_mtto) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
@@ -88,14 +77,13 @@ exports.createMaquinaria = async (req, res) => {
     );
     res.status(201).json(rows[0]);
   } catch (error) {
-     if (error.code === '23505') { // Error de constraint 'unique'
+     if (error.code === '23505') {
         return res.status(400).json({ message: `El número de serie '${serie}' ya existe.` });
     }
     res.status(500).json({ message: 'Error al crear la maquinaria', error });
   }
 };
 
-// Actualizar una maquinaria
 exports.updateMaquinaria = async (req, res) => {
   const { id } = req.params;
   const { tipo, modelo, serie, horometro, estado } = req.body;
@@ -144,18 +132,17 @@ exports.getEstadosMaquinaria = async (req, res) => {
 //   }
 // };
 
-// Eliminar una maquinaria
+
 exports.deleteMaquinaria = async (req, res) => {
   const { id } = req.params;
   try {
     const result = await db.query('DELETE FROM maquinaria WHERE id_maquinaria = $1', [id]);
-    // rowCount indica cuántas filas fueron afectadas. Si es 0, no se encontró.
     if (result.rowCount === 0) {
       return res.status(404).json({ message: 'Maquinaria no encontrada' });
     }
-    res.status(204).send(); // 204 No Content: éxito, pero no se devuelve nada.
+    res.status(204).send();
   } catch (error) {
-    // Manejar error de restricción de clave foránea
+
     if (error.code === '23503') {
         return res.status(400).json({ message: 'No se puede eliminar la maquinaria porque tiene órdenes de trabajo asociadas.' });
     }
