@@ -117,6 +117,7 @@ const io = new Server(server, {
 
 const userSocketMap = new Map();
 
+let currentUserId = null;
 io.on("connection", (socket) => {
   console.log(`Un usuario se conectó: ${socket.id}`);
   socket.on("join", (userId) => {
@@ -132,6 +133,22 @@ io.on("connection", (socket) => {
       remitente_id: String(data.remitente_id),
       destinatario_id: String(data.destinatario_id),
     };
+
+    socket.on("markAsRead", async (data) => {
+    if (!currentUserId) return;
+    const { remitente_id, destinatario_id } = data;
+    const updatedData = await markMessagesAsRead(remitente_id, destinatario_id);
+
+    if (updatedData) {
+      const senderSocketId = userSocketMap.get(String(remitente_id));
+      
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("messagesRead", { 
+          chatWithUserId: String(destinatario_id)
+        });
+      }
+    }
+  });
 
     try {
       const mensajeGuardado = await guardarMensaje(dataParaGuardar);
