@@ -15,4 +15,9 @@ router.get(
   ordenesController.getAllOrdenesTrabajo
 );
 
+router.get(
+  '/reporte/excel',
+  authMiddleware,
+  ordenesController.exportarReporteExcel
+);
 module.exports = router;

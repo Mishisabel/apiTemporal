@@ -36,3 +36,25 @@ exports.getHistorialChat = async (req, res) => {
     res.status(500).json({ message: "Error al obtener historial del chat" });
   }
 };
+
+exports.markMessagesAsRead = async (remitente_id, destinatario_id) => {
+  try {
+    const query = `
+      UPDATE Mensajes 
+      SET leido = TRUE 
+      WHERE 
+        remitente_id = $1 
+        AND destinatario_id = $2 
+        AND leido = FALSE
+      RETURNING remitente_id, destinatario_id;
+    `;
+    const { rows } = await db.query(query, [remitente_id, destinatario_id]);
+    if (rows.length > 0) {
+      return rows[0];
+    }
+    return null;
+  } catch (error) {
+    console.error("Error al marcar mensajes como leídos:", error);
+  }
+
+};

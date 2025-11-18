@@ -53,7 +53,7 @@ cron.schedule("* * * * *", async () => {
     }
 
     const { rows } = await db.query(
-      `SELECT maquinaria_id, nombre_equipo, horometro_actual, 
+      `SELECT maquinaria_id,codigo_activo, nombre_equipo, horometro_actual, 
               horometro_ultimo_mtto, horometro_prox_mtto 
        FROM maquinaria 
        WHERE estado_actual = $1`,
@@ -70,11 +70,11 @@ cron.schedule("* * * * *", async () => {
 
       if (estado <= 4) {
         notificacion = {
-          id: `not-maq-${maq.maquinaria_id}`,
+          id: `not-maq-${maq.codigo_activo}`,
           tipo: "alerta",
           titulo: "Mantenimiento Urgente",
-          mensaje: `¡Mantenimiento requerido YA! para ${
-            maq.nombre_equipo
+          mensaje: `¡Mantenimiento requerido YA! para cosechadora ${
+            maq.codigo_activo
           }. Horas restantes: ${estado.toFixed(2)}`,
           fecha: new Date().toISOString(),
           leida: false,
@@ -85,8 +85,8 @@ cron.schedule("* * * * *", async () => {
           id: `not-maq-${maq.maquinaria_id}`,
           tipo: "warning",
           titulo: "Mantenimiento Próximo",
-          mensaje: `${
-            maq.nombre_equipo
+          mensaje: `Cosechadora ${ 
+            maq.codigo_activo
           } requiere mantenimiento pronto. Horas restantes: ${estado.toFixed(
             2
           )}`,
@@ -117,6 +117,7 @@ const io = new Server(server, {
 
 const userSocketMap = new Map();
 
+let currentUserId = null;
 io.on("connection", (socket) => {
   console.log(`Un usuario se conectó: ${socket.id}`);
   socket.on("join", (userId) => {
@@ -132,6 +133,22 @@ io.on("connection", (socket) => {
       remitente_id: String(data.remitente_id),
       destinatario_id: String(data.destinatario_id),
     };
+
+    socket.on("markAsRead", async (data) => {
+    if (!currentUserId) return;
+    const { remitente_id, destinatario_id } = data;
+    const updatedData = await markMessagesAsRead(remitente_id, destinatario_id);
+
+    if (updatedData) {
+      const senderSocketId = userSocketMap.get(String(remitente_id));
+      
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("messagesRead", { 
+          chatWithUserId: String(destinatario_id)
+        });
+      }
+    }
+  });
 
     try {
       const mensajeGuardado = await guardarMensaje(dataParaGuardar);
