@@ -56,4 +56,5 @@ exports.markMessagesAsRead = async (remitente_id, destinatario_id) => {
   } catch (error) {
     console.error("Error al marcar mensajes como leídos:", error);
   }
+
 };

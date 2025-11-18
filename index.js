@@ -53,7 +53,7 @@ cron.schedule("* * * * *", async () => {
     }
 
     const { rows } = await db.query(
-      `SELECT maquinaria_id, nombre_equipo, horometro_actual, 
+      `SELECT maquinaria_id,codigo_activo, nombre_equipo, horometro_actual, 
               horometro_ultimo_mtto, horometro_prox_mtto 
        FROM maquinaria 
        WHERE estado_actual = $1`,
@@ -70,11 +70,11 @@ cron.schedule("* * * * *", async () => {
 
       if (estado <= 4) {
         notificacion = {
-          id: `not-maq-${maq.maquinaria_id}`,
+          id: `not-maq-${maq.codigo_activo}`,
           tipo: "alerta",
           titulo: "Mantenimiento Urgente",
-          mensaje: `¡Mantenimiento requerido YA! para ${
-            maq.nombre_equipo
+          mensaje: `¡Mantenimiento requerido YA! para cosechadora ${
+            maq.codigo_activo
           }. Horas restantes: ${estado.toFixed(2)}`,
           fecha: new Date().toISOString(),
           leida: false,
@@ -85,8 +85,8 @@ cron.schedule("* * * * *", async () => {
           id: `not-maq-${maq.maquinaria_id}`,
           tipo: "warning",
           titulo: "Mantenimiento Próximo",
-          mensaje: `${
-            maq.nombre_equipo
+          mensaje: `Cosechadora ${ 
+            maq.codigo_activo
           } requiere mantenimiento pronto. Horas restantes: ${estado.toFixed(
             2
           )}`,
