@@ -23,7 +23,7 @@ const mensajesRoutes = require("./routes/mensajes");
 app.use("/api/usuarios", usuariosRoutes);
 app.use("/api/maquinaria", maquinariaRoutes);
 app.use("/api/ordenes", ordenesTrabajoRoutes);
-app.use("/api/mensajes", mensajesRoutes);
+app.use("/api/mensajes", mensajesRoutes); // recupera mensajes enviados anteriormente
 app.get("/api/notificaciones/horometro", (req, res) => {
   res.json(horometerNotifications);
 });

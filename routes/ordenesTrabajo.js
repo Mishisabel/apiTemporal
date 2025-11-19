@@ -9,6 +9,12 @@ router.post(
   ordenesController.createOrdenInicioMtto
 );
 
+router.put(
+  '/finalizar/:id',
+  authMiddleware, // Necesario para verificar el rol de Operador
+  ordenesController.finalizarOrdenTrabajo
+);
+
 router.get(
   '/todas',
   authMiddleware,

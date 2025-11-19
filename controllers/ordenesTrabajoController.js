@@ -63,15 +63,17 @@ exports.getAllOrdenesTrabajo = async (req, res) => {
     const query = `
       SELECT 
         ot.ot_id AS id,
+        maq.maquinaria_id AS "maquinariaId",
         maq.nombre_equipo AS "maquinariaNombre",
+        maq.codigo_activo AS "maquinariaCodigo",
+        maq.modelo AS "maquinariaModelo", 
+        maq.horometro_actual AS "maquinariaHorometro",
         tm.nombre AS tipo,
         ot.descripcion_falla AS "descripcionProblema",
         est.estado AS estado,
-        
-        -- ¡Aquí leemos la prioridad real de la BD!
         COALESCE(p.nivel_prioridad, 'Sin prioridad') AS prioridad, 
-        
-        ot.fecha_creacion AS "fechaCreacion"
+        ot.fecha_creacion AS "fechaCreacion",
+        ot.horometro_ingreso AS "horometroIngreso"
       FROM 
         OrdenesTrabajo ot
       JOIN 
@@ -164,5 +166,74 @@ exports.exportarReporteExcel = async (req, res) => {
   } catch (error) {
     console.error('Error generando reporte Excel:', error);
     res.status(500).send('Error generando el reporte');
+  }
+};
+
+const ESTADO_OT_CERRADA = 2; // 'Cerrado'
+const ESTADO_MAQ_ACTIVA = 1; // 'Activo'
+
+exports.finalizarOrdenTrabajo = async (req, res) => {
+  const { id } = req.params; // ID de la OT
+  const { horometroSalida, trabajoRealizado } = req.body;
+  const { rol } = req.user;
+
+
+  if (rol !== 'Operador') {
+    return res.status(403).json({ message: 'Solo los Operadores pueden finalizar órdenes de trabajo.' });
+  }
+
+  if (!horometroSalida || !trabajoRealizado) {
+    return res.status(400).json({ message: 'Faltan datos (horometroSalida, trabajoRealizado).' });
+  }
+
+  const client = await db.pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+ 
+    const otCheck = await client.query('SELECT maquinaria_id FROM OrdenesTrabajo WHERE ot_id = $1', [id]);
+    if (otCheck.rows.length === 0) {
+      throw new Error('Orden de trabajo no encontrada');
+    }
+    const maquinariaId = otCheck.rows[0].maquinaria_id;
+
+
+    const updateOtQuery = `
+      UPDATE OrdenesTrabajo
+      SET 
+        fecha_cierre = NOW(),
+        horometro_salida = $1,
+        trabajo_realizado = $2,
+        estado_ot = $3
+      WHERE ot_id = $4
+      RETURNING *
+    `;
+    const updatedOT = await client.query(updateOtQuery, [
+      horometroSalida,
+      trabajoRealizado,
+      ESTADO_OT_CERRADA,
+      id
+    ]);
+
+    const updateMaqQuery = `
+      UPDATE Maquinaria
+      SET 
+        estado_actual = $1,
+        horometro_actual = $2,
+        horometro_ultimo_mtto = $2
+      WHERE maquinaria_id = $3
+    `;
+    await client.query(updateMaqQuery, [ESTADO_MAQ_ACTIVA, horometroSalida, maquinariaId]);
+
+    await client.query('COMMIT');
+    res.json(updatedOT.rows[0]);
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error al finalizar OT:', error);
+    res.status(500).json({ message: 'Error al finalizar la orden', error: error.message });
+  } finally {
+    client.release();
   }
 };
