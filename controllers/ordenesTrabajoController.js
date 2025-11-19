@@ -29,8 +29,8 @@ exports.createOrdenInicioMtto = async (req, res) => {
       fechaInicio,
       descripcionFalla,
       ESTADO_EN_MANTENIMIENTO_ID,
-      PRIORIDAD_MEDIA_ID,
       horometroIngreso,
+      PRIORIDAD_MEDIA_ID,
     ];
     const newOT = await client.query(otQuery, otValues);
     const maquinaQuery = `
